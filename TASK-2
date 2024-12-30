@@ -1,0 +1,91 @@
+import pandas as pd
+import numpy as np
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+from nltk.corpus import stopwords
+from gensim.models import Word2Vec
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+# Sample text data
+data = {
+    'text': [
+        "Natural Language Processing (NLP) is a fascinating field.",
+        "It involves the interaction between computers and humans using natural language.",
+        "NLP is used in various applications like chatbots, translation, and sentiment analysis.",
+        "Word embeddings like Word2Vec and GloVe are popular techniques in NLP."
+    ]
+}
+
+# Create a DataFrame
+df = pd.DataFrame(data)
+
+
+# Initialize the stemmer and lemmatizer
+stemmer = PorterStemmer()
+lemmatizer = WordNetLemmatizer()
+
+# Define a function for text preprocessing
+def preprocess_text(text):
+    # Tokenization
+    tokens = word_tokenize(text.lower())
+    
+    # Stop-word removal
+    tokens = [word for word in tokens if word.isalnum() and word not in stopwords.words('english')]
+    
+    # Stemming
+    stemmed_tokens = [stemmer.stem(word) for word in tokens]
+    
+    # Lemmatization
+    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
+    
+    return lemmatized_tokens
+
+# Apply preprocessing to the text data
+df['processed_text'] = df['text'].apply(preprocess_text)
+print(df[['text', 'processed_text']])
+
+
+# Create a Word2Vec model
+model = Word2Vec(sentences=df['processed_text'], vector_size=100, window=5, min_count=1, workers=4)
+
+# Display the vector for a specific word
+word = 'nlp'
+if word in model.wv:
+    print(f"Vector for '{word}': {model.wv[word]}")
+else:
+    print(f"'{word}' not found in the vocabulary.")
+
+
+from sklearn.decomposition import PCA
+
+# Get the word vectors
+words = list(model.wv.index_to_key)
+word_vectors = model.wv[words]
+
+# Reduce dimensionality using PCA
+pca = PCA(n_components=2)
+reduced_vectors = pca.fit_transform(word_vectors)
+
+# Create a DataFrame for visualization
+visualization_df = pd.DataFrame(reduced_vectors, index=words, columns=['x', 'y'])
+
+# Plot the word embeddings
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=visualization_df, x='x', y='y')
+
+# Annotate the points with the words
+for word, (x, y) in zip(visualization_df.index, reduced_vectors):
+    plt.text(x, y, word)
+
+plt.title('Word Embeddings Visualization')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.grid()
+plt.show()
